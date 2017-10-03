@@ -19,6 +19,7 @@ class EvalVisitor : public StmtVisitor, public ExprVisitor {
   stdx::any visitIf(If &) { return nullptr; }
   stdx::any visitPrint(Print &) { return nullptr; }
   stdx::any visitWhile(While &) { return nullptr; }
+  stdx::any visitVarDecl(VarDecl &) { return nullptr; }
   stdx::any visitBinop(Binop &op) {
     if (op.op == BinopType::ASSIGN) {
       auto target = std::dynamic_pointer_cast<Variable>(op.lhs);

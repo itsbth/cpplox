@@ -182,6 +182,7 @@ struct If;
 struct Fun;
 struct Print;
 struct Block;
+struct VarDecl;
 class StmtVisitor {
 public:
   virtual stdx::any visitExpressionStmt(ExpressionStmt &) = 0;
@@ -190,6 +191,7 @@ public:
   virtual stdx::any visitFun(Fun &) = 0;
   virtual stdx::any visitPrint(Print &) = 0;
   virtual stdx::any visitBlock(Block &) = 0;
+  virtual stdx::any visitVarDecl(VarDecl &) = 0;
 };
 struct Stmt : Node {
   virtual void write_to(std::ostream &) const = 0;
@@ -296,4 +298,19 @@ struct Block : Stmt {
   }
 
   stdx::any accept(StmtVisitor &visitor) { return visitor.visitBlock(*this); }
+};
+
+struct VarDecl : Stmt {
+  std::string ident;
+  std::shared_ptr<Expr> init;
+  VarDecl(std::string ident, std::shared_ptr<Expr> init)
+      : ident(ident), init(init) {}
+  VarDecl(const VarDecl &other) = default;
+  void write_to(std::ostream &os) const {
+    os << "VarDecl("
+       << "ident = " << this->ident << ", "
+       << "init = " << *this->init << ")";
+  }
+
+  stdx::any accept(StmtVisitor &visitor) { return visitor.visitVarDecl(*this); }
 };

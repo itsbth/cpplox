@@ -126,4 +126,5 @@ define-ast("Stmt", {
   Block => (:stmts(vec ptr "Stmt"), ),
   Fun => (:name("std::string"), :bindings(vec "std::string"), :body(vec ptr "Stmt")),
   Print => (:expr(ptr "Expr"), ),
+  VarDecl => (:ident("std::string"), :init(ptr "Expr")),
 });

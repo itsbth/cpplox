@@ -3,6 +3,16 @@
 Parser::Parser(std::vector<Token> tokens) : tokens(tokens), position(0) {}
 
 std::shared_ptr<Stmt> Parser::parseProgram() {
+  if (this->match(TokenType::T_VAR)) {
+    if (!this->match(TokenType::T_IDENTIFIER)) throw "Malformed var decl";
+    auto ident = this->prev().lexeme;
+    std::shared_ptr<Expr> init = nullptr;
+    if (this->match(TokenType::T_EQUAL)) {
+      init = this->expression();
+    }
+    if (!this->match(TokenType::T_SEMICOLON)) throw "Missing semicolon";
+    return std::make_shared<VarDecl>(ident, init);
+  }
   auto lit = this->expression();
   return std::make_shared<ExpressionStmt>(lit);
 }
