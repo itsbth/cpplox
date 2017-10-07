@@ -6,12 +6,20 @@
 
 namespace stdx = std::experimental;
 
+template <typename T> void write_maybe_null(std::ostream &os, T &o) {
+  if (o != nullptr)
+    os << *o;
+  else
+    os << "<null>";
+}
+
 template <typename T> void write_vec(std::ostream &os, std::vector<T> vec) {
   bool first = true;
   for (auto &it : vec) {
     if (!first)
       os << ", ";
     os << it;
+    first = false;
   }
 }
 
@@ -20,7 +28,8 @@ template <typename T> void write_vec_ptr(std::ostream &os, std::vector<T> vec) {
   for (auto &it : vec) {
     if (!first)
       os << ", ";
-    os << *it;
+    write_maybe_null(os, it);
+    first = false;
   }
 }
 
@@ -85,12 +94,17 @@ struct Call;
 struct Literal;
 struct Unop;
 class ExprVisitor {
-public:
+protected:
   virtual stdx::any visitBinop(Binop &) = 0;
   virtual stdx::any visitVariable(Variable &) = 0;
   virtual stdx::any visitCall(Call &) = 0;
   virtual stdx::any visitLiteral(Literal &) = 0;
   virtual stdx::any visitUnop(Unop &) = 0;
+  friend Binop;
+  friend Variable;
+  friend Call;
+  friend Literal;
+  friend Unop;
 };
 struct Expr : Node {
   virtual void write_to(std::ostream &) const = 0;
@@ -111,8 +125,12 @@ struct Binop : Expr {
   void write_to(std::ostream &os) const {
     os << "Binop("
        << "op = " << this->op << ", "
-       << "lhs = " << *this->lhs << ", "
-       << "rhs = " << *this->rhs << ")";
+       << "lhs = ";
+    write_maybe_null(os, this->lhs);
+    os << ", "
+       << "rhs = ";
+    write_maybe_null(os, this->rhs);
+    os << ")";
   }
 
   stdx::any accept(ExprVisitor &visitor) { return visitor.visitBinop(*this); }
@@ -140,7 +158,9 @@ struct Call : Expr {
   Call(const Call &other) = default;
   void write_to(std::ostream &os) const {
     os << "Call("
-       << "callee = " << *this->callee << ", "
+       << "callee = ";
+    write_maybe_null(os, this->callee);
+    os << ", "
        << "args = [";
     write_vec_ptr(os, this->args);
     os << "]"
@@ -170,7 +190,9 @@ struct Unop : Expr {
   void write_to(std::ostream &os) const {
     os << "Unop("
        << "op = " << this->op << ", "
-       << "rhs = " << *this->rhs << ")";
+       << "rhs = ";
+    write_maybe_null(os, this->rhs);
+    os << ")";
   }
 
   stdx::any accept(ExprVisitor &visitor) { return visitor.visitUnop(*this); }
@@ -184,7 +206,7 @@ struct Print;
 struct Block;
 struct VarDecl;
 class StmtVisitor {
-public:
+protected:
   virtual stdx::any visitExpressionStmt(ExpressionStmt &) = 0;
   virtual stdx::any visitWhile(While &) = 0;
   virtual stdx::any visitIf(If &) = 0;
@@ -192,6 +214,13 @@ public:
   virtual stdx::any visitPrint(Print &) = 0;
   virtual stdx::any visitBlock(Block &) = 0;
   virtual stdx::any visitVarDecl(VarDecl &) = 0;
+  friend ExpressionStmt;
+  friend While;
+  friend If;
+  friend Fun;
+  friend Print;
+  friend Block;
+  friend VarDecl;
 };
 struct Stmt : Node {
   virtual void write_to(std::ostream &) const = 0;
@@ -208,7 +237,9 @@ struct ExpressionStmt : Stmt {
   ExpressionStmt(const ExpressionStmt &other) = default;
   void write_to(std::ostream &os) const {
     os << "ExpressionStmt("
-       << "expr = " << *this->expr << ")";
+       << "expr = ";
+    write_maybe_null(os, this->expr);
+    os << ")";
   }
 
   stdx::any accept(StmtVisitor &visitor) {
@@ -224,8 +255,12 @@ struct While : Stmt {
   While(const While &other) = default;
   void write_to(std::ostream &os) const {
     os << "While("
-       << "cond = " << *this->cond << ", "
-       << "body = " << *this->body << ")";
+       << "cond = ";
+    write_maybe_null(os, this->cond);
+    os << ", "
+       << "body = ";
+    write_maybe_null(os, this->body);
+    os << ")";
   }
 
   stdx::any accept(StmtVisitor &visitor) { return visitor.visitWhile(*this); }
@@ -241,9 +276,15 @@ struct If : Stmt {
   If(const If &other) = default;
   void write_to(std::ostream &os) const {
     os << "If("
-       << "cond = " << *this->cond << ", "
-       << "ifTrue = " << *this->ifTrue << ", "
-       << "ifFalse = " << *this->ifFalse << ")";
+       << "cond = ";
+    write_maybe_null(os, this->cond);
+    os << ", "
+       << "ifTrue = ";
+    write_maybe_null(os, this->ifTrue);
+    os << ", "
+       << "ifFalse = ";
+    write_maybe_null(os, this->ifFalse);
+    os << ")";
   }
 
   stdx::any accept(StmtVisitor &visitor) { return visitor.visitIf(*this); }
@@ -279,7 +320,9 @@ struct Print : Stmt {
   Print(const Print &other) = default;
   void write_to(std::ostream &os) const {
     os << "Print("
-       << "expr = " << *this->expr << ")";
+       << "expr = ";
+    write_maybe_null(os, this->expr);
+    os << ")";
   }
 
   stdx::any accept(StmtVisitor &visitor) { return visitor.visitPrint(*this); }
@@ -309,7 +352,9 @@ struct VarDecl : Stmt {
   void write_to(std::ostream &os) const {
     os << "VarDecl("
        << "ident = " << this->ident << ", "
-       << "init = " << *this->init << ")";
+       << "init = ";
+    write_maybe_null(os, this->init);
+    os << ")";
   }
 
   stdx::any accept(StmtVisitor &visitor) { return visitor.visitVarDecl(*this); }

@@ -24,133 +24,127 @@ std::map<std::string, TokenType> keywords = {
 Scanner::Scanner(std::string source) : source(source), current(0), start(0) {}
 
 std::vector<Token> &Scanner::scanTokens() {
-  while (!this->isAtEnd()) {
-    this->start = this->current;
-    auto token = this->advance();
+  while (!isAtEnd()) {
+    start = current;
+    auto token = advance();
     switch (token) {
     case '(':
-      this->addToken(TokenType::T_LEFT_PAREN);
+      addToken(TokenType::T_LEFT_PAREN);
       break;
     case ')':
-      this->addToken(TokenType::T_RIGHT_PAREN);
+      addToken(TokenType::T_RIGHT_PAREN);
       break;
     case '{':
-      this->addToken(TokenType::T_LEFT_BRACE);
+      addToken(TokenType::T_LEFT_BRACE);
       break;
     case '}':
-      this->addToken(TokenType::T_RIGHT_BRACE);
+      addToken(TokenType::T_RIGHT_BRACE);
       break;
     case ',':
-      this->addToken(TokenType::T_COMMA);
+      addToken(TokenType::T_COMMA);
       break;
     case '.':
-      this->addToken(TokenType::T_DOT);
+      addToken(TokenType::T_DOT);
       break;
     case '+':
-      this->addToken(TokenType::T_PLUS);
+      addToken(TokenType::T_PLUS);
       break;
     case '-':
-      this->addToken(TokenType::T_MINUS);
+      addToken(TokenType::T_MINUS);
       break;
     case '*':
-      this->addToken(TokenType::T_STAR);
+      addToken(TokenType::T_STAR);
       break;
     case '!':
-      this->addToken(this->match('=') ? TokenType::T_BANG_EQUAL
-                                      : TokenType::T_BANG);
+      addToken(match('=') ? TokenType::T_BANG_EQUAL : TokenType::T_BANG);
       break;
     case '=':
-      this->addToken(this->match('=') ? TokenType::T_EQUAL_EQUAL
-                                      : TokenType::T_EQUAL);
+      addToken(match('=') ? TokenType::T_EQUAL_EQUAL : TokenType::T_EQUAL);
       break;
     case '<':
-      this->addToken(this->match('=') ? TokenType::T_LESS_EQUAL
-                                      : TokenType::T_LESS);
+      addToken(match('=') ? TokenType::T_LESS_EQUAL : TokenType::T_LESS);
       break;
     case '>':
-      this->addToken(this->match('=') ? TokenType::T_GREATER_EQUAL
-                                      : TokenType::T_GREATER);
+      addToken(match('=') ? TokenType::T_GREATER_EQUAL : TokenType::T_GREATER);
       break;
     case ';':
-      this->addToken(TokenType::T_SEMICOLON);
+      addToken(TokenType::T_SEMICOLON);
       break;
     case '/':
       if (match('/')) {
-        while (this->peek() != '\n')
-          this->advance();
+        while (peek() != '\n')
+          advance();
         break;
       }
-      this->addToken(TokenType::T_SLASH);
+      addToken(TokenType::T_SLASH);
     case '\n':
-      this->line += 1;
+      line += 1;
     case ' ':
     case '\t':
       break;
     case '"':
-      this->addString();
+      addString();
       break;
     default:
       if (is_numeric(token)) {
-        this->addNumber();
+        addNumber();
       } else if (is_alpha(token)) {
-        this->addIdentifier();
+        addIdentifier();
       } else {
         throw "Unknown token found";
       }
     }
   }
-  this->addToken(TokenType::T_EOF);
-  return this->tokens;
+  addToken(TokenType::T_EOF);
+  return tokens;
 }
 
 void Scanner::addNumber() {
-  while (is_numeric(this->peek()))
-    this->advance();
-  if (this->peek() == '.' && is_numeric(this->peekNext())) {
-    this->advance();
-    while (is_numeric(this->peek()))
-      this->advance();
+  while (is_numeric(peek()))
+    advance();
+  if (peek() == '.' && is_numeric(peekNext())) {
+    advance();
+    while (is_numeric(peek()))
+      advance();
   }
-  this->addToken(TokenType::T_NUMBER);
+  addToken(TokenType::T_NUMBER);
 }
 
 void Scanner::addIdentifier() {
-  while (is_alphanumeric(this->peek()))
-    this->advance();
-  auto ident = this->source.substr(this->start, this->current - this->start);
+  while (is_alphanumeric(peek()))
+    advance();
+  auto ident = source.substr(start, current - start);
   if (keywords.count(ident) != 0)
-    this->addToken(keywords[ident]);
+    addToken(keywords[ident]);
   else
-    this->addToken(TokenType::T_IDENTIFIER);
+    addToken(TokenType::T_IDENTIFIER);
 }
 
 void Scanner::addString() {
-  while (!this->isAtEnd() && !this->match('"'))
-    this->advance();
-  this->addToken(TokenType::T_STRING);
+  while (!isAtEnd() && !match('"'))
+    advance();
+  addToken(TokenType::T_STRING);
 }
 
 void Scanner::addToken(TokenType type) {
-  this->tokens.push_back(
-      Token{type, this->source.substr(this->start, this->current - this->start),
-            this->start});
+  tokens.push_back(Token{type, source.substr(start, current - start), start});
 }
 
-char Scanner::peek() const { return this->source[this->current]; }
-char Scanner::peekNext() const { return this->source[this->current + 1]; }
+char Scanner::peek() const { return source[current]; }
+char Scanner::peekNext() const { return source[current + 1]; }
 
 char Scanner::advance() {
-  auto current = this->peek();
-  this->current += 1;
-  return current;
+  auto token = peek();
+  current += 1;
+  return token;
 }
 
 bool Scanner::match(char ch) {
-  if (this->peek() == ch) {
-    this->advance();
+  if (peek() == ch) {
+    advance();
     return true;
   }
   return false;
 }
 
-bool Scanner::isAtEnd() const { return this->current >= this->source.length(); }
+bool Scanner::isAtEnd() const { return current >= source.length(); }

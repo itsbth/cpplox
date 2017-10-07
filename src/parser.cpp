@@ -2,39 +2,75 @@
 
 Parser::Parser(std::vector<Token> tokens) : tokens(tokens), position(0) {}
 
-std::shared_ptr<Stmt> Parser::parseProgram() {
-  if (this->match(TokenType::T_VAR)) {
-    if (!this->match(TokenType::T_IDENTIFIER)) throw "Malformed var decl";
-    auto ident = this->prev().lexeme;
+std::vector<std::shared_ptr<Stmt>> Parser::parseProgram() {
+  auto stmts = std::vector<std::shared_ptr<Stmt>>();
+  while (!match(TokenType::T_EOF)) {
+    stmts.push_back(statement());
+  }
+  return stmts;
+}
+std::shared_ptr<Stmt> Parser::statement() {
+  if (match(TokenType::T_VAR)) {
+    if (!match(TokenType::T_IDENTIFIER))
+      throw "Malformed var decl";
+    auto ident = prev().lexeme;
     std::shared_ptr<Expr> init = nullptr;
-    if (this->match(TokenType::T_EQUAL)) {
-      init = this->expression();
+    if (match(TokenType::T_EQUAL)) {
+      init = expression();
     }
-    if (!this->match(TokenType::T_SEMICOLON)) throw "Missing semicolon";
+    if (!match(TokenType::T_SEMICOLON))
+      throw "Missing semicolon";
     return std::make_shared<VarDecl>(ident, init);
   }
-  auto lit = this->expression();
+  if (match(TokenType::T_IF)) {
+    expect(TokenType::T_LEFT_PAREN);
+    auto cond = expression();
+    expect(TokenType::T_RIGHT_PAREN);
+    auto ifTrue = statement();
+    std::shared_ptr<Stmt> ifFalse;
+    if (match(TokenType::T_ELSE)) {
+      ifFalse = statement();
+    }
+    return std::make_shared<If>(cond, ifTrue, ifFalse);
+  }
+  if (match(TokenType::T_WHILE)) {
+    expect(TokenType::T_LEFT_PAREN);
+    auto cond = expression();
+    expect(TokenType::T_RIGHT_PAREN);
+    auto body = statement();
+    return std::make_shared<While>(cond, body);
+  }
+  if (match(TokenType::T_PRINT)) {
+    return std::make_shared<Print>(expression());
+  }
+  if (match(TokenType::T_LEFT_BRACE)) {
+    std::vector<std::shared_ptr<Stmt>> body;
+    while (!match(TokenType::T_RIGHT_BRACE)) {
+      body.push_back(statement());
+    }
+    return std::make_shared<Block>(body);
+  }
+  auto lit = expression();
   return std::make_shared<ExpressionStmt>(lit);
 }
 
-std::shared_ptr<Expr> Parser::expression() { return this->assignment(); }
+std::shared_ptr<Expr> Parser::expression() { return assignment(); }
 
 std::shared_ptr<Expr> Parser::assignment() {
-  auto lhs = this->equality();
-  while (this->match(TokenType::T_EQUAL)) {
-    Token t = this->prev();
-    auto rhs = this->equality();
+  auto lhs = equality();
+  while (match(TokenType::T_EQUAL)) {
+    Token t = prev();
+    auto rhs = equality();
     lhs = std::make_shared<Binop>(BinopType::ASSIGN, lhs, rhs);
   }
   return lhs;
 }
 
 std::shared_ptr<Expr> Parser::equality() {
-  auto lhs = this->comparison();
-  while (this->match(TokenType::T_EQUAL_EQUAL) ||
-         this->match(TokenType::T_BANG_EQUAL)) {
-    Token t = this->prev();
-    auto rhs = this->multiplication();
+  auto lhs = comparison();
+  while (match(TokenType::T_EQUAL_EQUAL) || match(TokenType::T_BANG_EQUAL)) {
+    Token t = prev();
+    auto rhs = multiplication();
     lhs = std::make_shared<Binop>(
         t.type == TokenType::T_EQUAL_EQUAL ? BinopType::EQ : BinopType::NE, lhs,
         rhs);
@@ -43,13 +79,11 @@ std::shared_ptr<Expr> Parser::equality() {
 }
 
 std::shared_ptr<Expr> Parser::comparison() {
-  auto lhs = this->addition();
-  while (this->match(TokenType::T_LESS) ||
-         this->match(TokenType::T_LESS_EQUAL) ||
-         this->match(TokenType::T_GREATER) ||
-         this->match(TokenType::T_GREATER_EQUAL)) {
-    Token t = this->prev();
-    auto rhs = this->multiplication();
+  auto lhs = addition();
+  while (match(TokenType::T_LESS) || match(TokenType::T_LESS_EQUAL) ||
+         match(TokenType::T_GREATER) || match(TokenType::T_GREATER_EQUAL)) {
+    Token t = prev();
+    auto rhs = multiplication();
     lhs = std::make_shared<Binop>(t.type == TokenType::T_LESS
                                       ? BinopType::LT
                                       : t.type == TokenType::T_LESS_EQUAL
@@ -63,10 +97,10 @@ std::shared_ptr<Expr> Parser::comparison() {
 }
 
 std::shared_ptr<Expr> Parser::addition() {
-  auto lhs = this->multiplication();
-  while (this->match(TokenType::T_PLUS) || this->match(TokenType::T_MINUS)) {
-    Token t = this->prev();
-    auto rhs = this->multiplication();
+  auto lhs = multiplication();
+  while (match(TokenType::T_PLUS) || match(TokenType::T_MINUS)) {
+    Token t = prev();
+    auto rhs = multiplication();
     lhs = std::make_shared<Binop>(t.type == TokenType::T_PLUS ? BinopType::ADD
                                                               : BinopType::SUB,
                                   lhs, rhs);
@@ -75,10 +109,10 @@ std::shared_ptr<Expr> Parser::addition() {
 }
 
 std::shared_ptr<Expr> Parser::multiplication() {
-  auto lhs = this->primary();
-  while (this->match(TokenType::T_STAR) || this->match(TokenType::T_SLASH)) {
-    Token t = this->prev();
-    auto rhs = this->primary();
+  auto lhs = primary();
+  while (match(TokenType::T_STAR) || match(TokenType::T_SLASH)) {
+    Token t = prev();
+    auto rhs = primary();
     lhs = std::make_shared<Binop>(t.type == TokenType::T_STAR ? BinopType::MUL
                                                               : BinopType::DIV,
                                   lhs, rhs);
@@ -87,16 +121,16 @@ std::shared_ptr<Expr> Parser::multiplication() {
 }
 
 std::shared_ptr<Expr> Parser::primary() {
-  if (this->match(TokenType::T_NUMBER)) {
-    double val = std::stod(this->prev().lexeme);
+  if (match(TokenType::T_NUMBER)) {
+    double val = std::stod(prev().lexeme);
     return std::make_shared<Literal>(val);
   }
-  if (this->match(TokenType::T_IDENTIFIER)) {
-    return std::make_shared<Variable>(this->prev().lexeme);
+  if (match(TokenType::T_IDENTIFIER)) {
+    return std::make_shared<Variable>(prev().lexeme);
   }
-  if (this->match(TokenType::T_LEFT_PAREN)) {
-    auto expr = this->expression();
-    if (!this->match(TokenType::T_RIGHT_PAREN)) {
+  if (match(TokenType::T_LEFT_PAREN)) {
+    auto expr = expression();
+    if (!match(TokenType::T_RIGHT_PAREN)) {
       throw "T_RIGHT_PAREN expected";
     }
     return expr;
@@ -104,14 +138,19 @@ std::shared_ptr<Expr> Parser::primary() {
   throw "This is not an expression";
 }
 
-Token Parser::peek() const { return this->tokens[this->position]; }
-Token Parser::prev() const { return this->tokens[this->position - 1]; }
-bool Parser::check(TokenType type) const { return this->peek().type == type; }
+Token Parser::peek() const { return tokens[position]; }
+Token Parser::prev() const { return tokens[position - 1]; }
+bool Parser::check(TokenType type) const { return peek().type == type; }
 bool Parser::match(TokenType type) {
-  if (this->check(type)) {
-    this->advance();
+  if (check(type)) {
+    advance();
     return true;
   }
   return false;
 }
-Token Parser::advance() { return this->tokens[this->position++]; }
+void Parser::expect(TokenType type) {
+  if (!match(type))
+    throw "Unexpected token";
+}
+Token Parser::advance() { return tokens[position++]; }
+bool Parser::isAtEnd() const { return position >= tokens.size(); }

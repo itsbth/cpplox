@@ -9,9 +9,10 @@ class Parser {
 
 public:
   Parser(std::vector<Token>);
-  std::shared_ptr<Stmt> parseProgram();
+  std::vector<std::shared_ptr<Stmt>> parseProgram();
 
 private:
+  std::shared_ptr<Stmt> statement();
   std::shared_ptr<Expr> expression();
   std::shared_ptr<Expr> assignment();
   std::shared_ptr<Expr> equality();
@@ -24,5 +25,7 @@ private:
   Token prev() const;
   bool check(TokenType) const;
   bool match(TokenType);
+  void expect(TokenType);
   Token advance();
+  bool isAtEnd() const;
 };

@@ -35,8 +35,10 @@ sub print-node(@members) {
         write_vec$($v ~~ /ptr/ ?? "_ptr" !! "")\(os, this->$k);  
         os << "]"
       ]
+    } elsif ($v ~~ /ptr/) {
+      qq["$k = "; write_maybe_null(os, this->$k); os]
     } else {
-      qq["$k = " << $($v ~~ /ptr/ ?? "*" !! "")this->$k]
+      qq["$k = " << this->$k]
     }
   })
 }
@@ -44,8 +46,9 @@ sub define-ast($name, %types) {
   say qq:to/EOF/;
   %types.keys.map({ "  struct $_;" }).join("\n")
   class $($name)Visitor \{
-    public:
+    protected:
     %types.keys.map({ "  virtual stdx::any visit$_\($_&) = 0;" }).join("\n")
+    %types.keys.map({ "  friend $_;" }).join("\n")
   };
   struct $name : Node \{
     virtual void write_to(std::ostream&) const = 0;
@@ -86,12 +89,20 @@ say q:to/HEADER/;
 
 namespace stdx = std::experimental;
 
+template<typename T> void write_maybe_null(std::ostream& os, T& o) {
+  if (o != nullptr)
+    os << *o;
+  else
+    os << "<null>";
+}
+
 template<typename T> void write_vec(std::ostream& os, std::vector<T> vec) {
   bool first = true;
   for (auto& it : vec) {
     if (!first)
-    os << ", ";
+      os << ", ";
     os << it;
+    first = false;
   }
 }
 
@@ -100,8 +111,9 @@ template<typename T> void write_vec_ptr(std::ostream& os, std::vector<T> vec) {
   bool first = true;
   for (auto& it : vec) {
     if (!first)
-    os << ", ";
-    os << *it;
+      os << ", ";
+    write_maybe_null(os, it);
+    first = false;
   }
 }
 
